@@ -8,5 +8,9 @@ Whenever they are including the product or service of a particular brand in thei
 
 While it is certainly not illegal to use trademarked products in the visual media by films, TV shows, and music videos, they often resort to product displacement, for a number of reasons, ranging from ‘avoiding the legal battles’ to ‘not wanting to annoy a sponsor’.
 
-![Branching Strategy](docs/images/project_workflow.png)
+![Project workflow](docs/images/project_workflow.png)
 
+
+## AWS Serverless Application Model
+The AWS Serverless Application Model (SAM) is an open-source framework for building serverless applications. It provides shorthand syntax to express functions, APIs, databases, and event source mappings.
+https://aws.amazon.com/serverless/sam/
