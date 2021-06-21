@@ -1,9 +1,23 @@
 import base64
+import json
+import logging
+import os
 from datetime import datetime
 
 import boto3
 
-REKOGNITION = boto3.client('rekognition')
+REGION = os.environ.get('REGION', 'ap-southeast-2')
+
+REKOGNITION = boto3.client('rekognition', region_name=REGION)
+
+
+def format_json(data):
+    return json.dumps(
+        data, default=lambda d: d.isoformat() if isinstance(d, datetime.datetime) else str(d))
+
+logging.basicConfig()
+log = logging.getLogger()
+log.setLevel(os.environ.get('LOG_LEVEL', 'INFO'))
 
 
 def detect_labels(img):

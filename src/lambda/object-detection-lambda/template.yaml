@@ -5,20 +5,25 @@ Description: >
 
   Sample SAM Template for object-detection-lambda
 
-# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
 Globals:
   Function:
+    Runtime: python3.6
     Timeout: 3
+    Environment:
+      Variables:
+        REGION: !Ref "AWS::Region"
+    Tags:
+      Project: "Logo Obfuscation"
+      Course: "FastAi"
 
 Resources:
-  HelloWorldFunction:
+  DetectObjectsFunction:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     Properties:
-      CodeUri: hello_world/
+      CodeUri: app/
       Handler: app.lambda_handler
-      Runtime: python3.6
       Events:
-        HelloWorld:
+        DetectObjects:
           Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
           Properties:
             Path: /detectobjects
@@ -28,12 +33,12 @@ Outputs:
   # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
   # Find out more about other implicit resources you can reference within SAM
   # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
-  HelloWorldApi:
+  DetectObjectsFunctionApi:
     Description: "API Gateway endpoint URL for Prod stage for Hello World function"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/hello/"
-  HelloWorldFunction:
-    Description: "Hello World Lambda Function ARN"
-    Value: !GetAtt HelloWorldFunction.Arn
-  HelloWorldFunctionIamRole:
-    Description: "Implicit IAM Role created for Hello World function"
-    Value: !GetAtt HelloWorldFunctionRole.Arn
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/detectobjects/"
+  DetectObjectsFunctionFunction:
+    Description: "DetectObjectsFunction Lambda Function ARN"
+    Value: !GetAtt DetectObjectsFunction.Arn
+  DetectObjectsFunctionFunctionIamRole:
+    Description: "Implicit IAM Role created for DetectObjectsFunction function"
+    Value: !GetAtt DetectObjectsFunction.Arn
