@@ -1,5 +1,5 @@
 # FASTAI LIVE VIDEO LOGO OBFUSCATION
-The Project aims To DETECT and OBFUCATE specific brand logos from clothing in a live video feed. 
+The Project aims To DETECT and OBFUSCATE specific brand logos from clothing in a live video feed. 
 
 ## Problem Statement
 A lot of movies, TV shows, or music videos blur out, remove or cover out the logos and/or brand names of certain companies when they appear on screen. This is known as product displacement. 

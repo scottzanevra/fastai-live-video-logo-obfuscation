@@ -15,11 +15,12 @@ APP_ROOT='./'
 
 pushd "${APP_ROOT}"
 
-echo "installed dependency"
 PIP_TRUSTED_HOST="pypi.python.org pypi.org files.pythonhosted.org devpi"
 
+echo "Building ${FunctionName}"
 sam build --manifest "${APP_ROOT}/app/requirements.txt" --build-dir ./build
 
+echo "Deploying ${FunctionName}"
 sam deploy \
     --no-fail-on-empty-changeset \
     --capabilities ${CapabilityName} \
@@ -29,6 +30,9 @@ sam deploy \
     --s3-prefix "scott/${FunctionName}" \
     --region ${DeploymentRegion} \
     --tags "Course=FastAI" "Project=ObjectDetection" \
+
+echo "Removing Build Directory"
+rm -rf ./build
 
 popd
 
