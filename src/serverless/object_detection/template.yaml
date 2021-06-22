@@ -21,7 +21,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: app/
-      Role: !GetAtt "Role.Arn"
+      FunctionName: "fast-ai-object-detection-lambda"
       Handler: app.lambda_handler
       Policies:
         - "arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"

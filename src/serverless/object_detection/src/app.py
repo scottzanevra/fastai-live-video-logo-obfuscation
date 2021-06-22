@@ -18,6 +18,7 @@ def format_json(data):
     return json.dumps(
         data, default=lambda d: d.isoformat() if isinstance(d, datetime.datetime) else str(d))
 
+
 def detect_labels(image):
 
     response = REKOGNITION.detect_labels(Image={'Bytes': image})
