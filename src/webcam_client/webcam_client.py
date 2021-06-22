@@ -27,6 +27,13 @@ def resize_bbox(img, bbox):
     }
 
 
+def blur_img(path, imgSize):
+    img = cv2.imread(path)
+    img = cv2.blur(img,(5,5))
+    img = cv2.resize(img, imgSize)
+    return img
+
+
 def draw_bounding_box(img, bbox, color=(255, 0, 0)):
     pt1 = (bbox['Left'], bbox['Top'])
     pt2 = (bbox['Left'] + bbox['Width'], bbox['Top'] + bbox['Height'])
