@@ -1,0 +1,6 @@
+fastai
+pycocotools
+numpy 
+matplotlib
+scikit-image
+jupyterlab
