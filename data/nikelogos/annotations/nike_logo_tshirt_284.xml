@@ -1,0 +1,26 @@
+<annotation>
+	<folder>nikelogos</folder>
+	<filename>nike_logo_tshirt_284.jpg</filename>
+	<path>../images/nike_logo_tshirt_284.jpg</path>
+	<source>
+		<database>Unknown</database>
+	</source>
+	<size>
+		<width>512</width>
+		<height>512</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>swoosh</name>
+		<pose>Unspecified</pose>
+		<truncated>0</truncated>
+		<difficult>0</difficult>
+		<bndbox>
+			<xmin>99</xmin>
+			<ymin>81</ymin>
+			<xmax>279</xmax>
+			<ymax>135</ymax>
+		</bndbox>
+	</object>
+</annotation>

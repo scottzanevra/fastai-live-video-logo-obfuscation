@@ -1,0 +1,26 @@
+<annotation>
+	<folder>nikelogos</folder>
+	<filename>nike_logo_jumper_240.jpg</filename>
+	<path>../images/nike_logo_jumper_240.jpg</path>
+	<source>
+		<database>Unknown</database>
+	</source>
+	<size>
+		<width>512</width>
+		<height>512</height>
+		<depth>3</depth>
+	</size>
+	<segmented>0</segmented>
+	<object>
+		<name>swoosh</name>
+		<pose>Unspecified</pose>
+		<truncated>0</truncated>
+		<difficult>0</difficult>
+		<bndbox>
+			<xmin>233</xmin>
+			<ymin>256</ymin>
+			<xmax>282</xmax>
+			<ymax>276</ymax>
+		</bndbox>
+	</object>
+</annotation>
