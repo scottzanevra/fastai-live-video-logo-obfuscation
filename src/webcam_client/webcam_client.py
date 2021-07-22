@@ -9,6 +9,7 @@ import uuid
 import boto3
 import cv2
 
+from src.inference import predict
 
 logging.basicConfig()
 log = logging.getLogger()
@@ -23,6 +24,104 @@ CAMERA_ID = socket.gethostname()
 RESOLUTION = {'1080p': (1920, 1080), '720p': (1280, 720), '480p': (858, 480), 'training': (300, 300)}
 TMP_DIR = "tmp"
 
+def load_model(model_path, model_number, device):
+    model_type, model = model_selection(model_number)
+    model.load_state_dict(torch.load(model_path, map_location=device))
+    return model_type, model
+
+def convert_img_to_ds(img):
+    infer_tfms = tfms.A.Adapter([*tfms.A.resize_and_pad(size=384), tfms.A.Normalize()])
+    return Dataset.from_images([img], infer_tfms)
+
+# def predict(model_type, model, img):
+#     infer_ds = convert_img_to_ds(img)
+#     preds = model_type.predict(model, infer_ds, keep_images=True)
+#     for x in preds[0].detection.components:
+#         if 'ScoresRecordComponent' in str(x):
+#             scores = x.scores
+#         if 'InstancesLabelsRecordComponent' in str(x):
+#             labels = x.label_ids
+#         if 'BBoxesRecordComponen' in str(x):
+#             bboxes = []
+#             for bbox in x.bboxes:
+#                 min = [bbox.xmin,bbox.ymin]
+#                 max = [bbox.xmax,bbox.ymax]
+#                 bboxes.append([min,max])
+#
+#     return labels, scores, bboxes
+#
+
+
+def overlap_percent(bbox1, bbox2):
+    # calculates the overlap ratio given 1 rectangle with corners l1 and r2 and
+    # the other with corners l2 and r2
+    l1 = bbox1[0]
+    r1 = bbox1[1]
+    l2 = bbox2[0]
+    r2 = bbox2[1]
+    x = 0
+    y = 1
+
+    x_dist = (min(r1[x], r2[x]) -
+              max(l1[x], l2[x]))
+    y_dist = (min(r1[y], r2[y]) -
+              max(l1[y], l2[y]))
+    areaI = 0
+    if x_dist > 0 and y_dist > 0:
+        areaI = x_dist * y_dist
+
+    area1 = abs( (l1[0]-r1[0])*(l1[1]-r1[1]) )
+    overlap = areaI / area1
+
+    return overlap
+
+
+def select_bbox(labels, scores, bboxes):
+    person_label = 3 # label of person
+    logo_labels = [1,2] # list of logo lables
+    overlap_threshold = 0.5 # ratio of overlap for obfiscating
+    bboxes_out = []
+    for i in range(len(labels)):
+        for j in range(len(labels)):
+            if labels[i] == person_label:
+                if labels[j] in logo_labels:
+                    bbox1 = bboxes[j] # logo
+                    bbox2 = bboxes[i] # person
+                    overlap = overlap_percent(bbox1, bbox2)
+                    if overlap >= overlap_threshold:
+                        bboxes_out.append(bbox1)
+    return bboxes_out
+
+def show_predict(img, labels, scores, bboxes):
+    img2 = img.copy()
+    draw2 = ImageDraw.Draw(img2)
+    width, height = img2.size
+    w_ratio = width / 380
+    h_ratio = height / 380
+    for bbox, label in zip(bboxes,labels):
+        bbox1 = [ tuple([bbox[0][0]*w_ratio,bbox[0][1]*h_ratio]), tuple([bbox[1][0]*w_ratio,bbox[1][1]*h_ratio]) ]
+        if label == 3:
+            color ="red"
+        else:
+            color = "yellow"
+        draw2.rectangle(bbox1, outline =color)
+
+    img2.show()
+
+
+def obfuscate(img,bboxes_remove):
+    # removes all the rectangles in bbox_out list
+    img2 = img.copy()
+    draw2 = ImageDraw.Draw(img2)
+    width, height = img2.size
+    w_ratio = width / 380
+    h_ratio = height / 380
+    for bbox in bboxes_remove:
+        bbox1 = [ tuple([bbox[0][0]*w_ratio,bbox[0][1]*h_ratio]), tuple([bbox[1][0]*w_ratio,bbox[1][1]*h_ratio]) ]
+        color = "yellow"
+        draw2.rectangle(bbox1, outline =color, fill=color)
+
+    return img2
 
 def make_directory(dir_path):
     if not os.path.exists(dir_path):
@@ -119,6 +218,13 @@ def save_jpeg_to_temp(jpeg, destination, picture_name):
         f.write(jpeg)
 
 
+def convert_bboxes_dims(img_size, factor=384):
+    imgf_w = img_size.shape[1] / factor
+    imgf_h = img_size.shape[0] / factor
+
+    return imgf_w, imgf_h
+
+
 def lambda_handler(event, context):
 
     cap = cv2.VideoCapture(0)
@@ -138,14 +244,33 @@ def lambda_handler(event, context):
             raise RuntimeError('Failed to capture frame')
 
         if frame_count % frame_skip == 0:  # only analyze every n frames
-            # detect_ppe(frame, client)
+
+            # Inference timy
+            labels, scores, bboxes = predict(1, cv_img=frame)
+
+            for i, label in enumerate(labels):
+                if label == 2: #TODO: make it so it draws a box around human and obfuscates nike and swoosh
+                    bbox = bboxes[i]
+                    xf, yf = convert_bboxes_dims(frame)
+                    bbox_min = (int(bbox.xmin*xf), int(bbox.ymin*yf))
+                    bbox_max = (int(bbox.xmax*xf), int(bbox.ymax*yf))
+
+                    # TODO: label should be a mapping to the text desc instead of id
+                    cv2.putText(
+                        frame, "SWOOSH", bbox_min,
+                        cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
+
+                    cv2.rectangle(frame, bbox_min, bbox_max, (255,0,0), -1)
+
             cv2.imshow(winname, frame)
+
             # Create random string to use as teh image name
             pic_id = str(uuid.uuid4())
             jpeg = convert_to_jpg(frame, RESOLUTION['training'])
             make_directory(TMP_DIR)
             save_jpeg_to_temp(jpeg, TMP_DIR, pic_id)
             log.info(f"Saving picture {pic_id} to {TMP_DIR}")
+
 
         frame_count += 1
 
