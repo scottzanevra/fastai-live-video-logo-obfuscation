@@ -1,8 +1,9 @@
 from icevision.all import *
 import PIL
+from PIL import Image
+import time
 
-
-model_dir = Path("/Users/scott.zanevra/PycharmProjects/fastai-live-video-logo-obfuscation/models/")
+model_dir = Path("models/")
 
 import ssl
 ssl._create_default_https_context = ssl._create_unverified_context
@@ -46,15 +47,23 @@ def load_model(model_number):
     return model_type, model
 
 
-def convert_img_to_ds(image_path):
-    img = PIL.Image.open(image_path)
+def convert_img_to_ds(img_pil):
     infer_tfms = tfms.A.Adapter([*tfms.A.resize_and_pad(size=384), tfms.A.Normalize()])
-    return Dataset.from_images([img], infer_tfms)
+    return Dataset.from_images([img_pil], infer_tfms)
 
 
-def predict(model_number, image_path):
+def predict(model_number, image_path=None, cv_img=None):
     model_type, model = load_model(model_number)
-    infer_ds = convert_img_to_ds(image_path)
+
+    img_pil=None
+
+    if image_path:
+        img_pil = Image.open(image_path)
+    else:
+        img = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
+        img_pil = Image.fromarray(img)
+
+    infer_ds = convert_img_to_ds(img_pil)
     preds = model_type.predict(model, infer_ds, keep_images=True)
     for x in preds[0].pred.detection.components:
         print(x)
@@ -69,10 +78,17 @@ def predict(model_number, image_path):
             print(bboxes)
 
     show_preds(preds=preds[0:1])
+    return labels, scores, bboxes
 
+image_path = "data/test/image1.jpg"
+img = cv2.imread(image_path)
 
-img_path = "/Users/scott.zanevra/PycharmProjects/fastai-live-video-logo-obfuscation/data/test/image1.jpg"
 model_number = 1
-if __name__ is "__main__":
-    predict(model_number, img_path)
+
+if __name__ == "__main__":
+    start = time.time()
+    predict(model_number, cv_img=img)
+
+    labels, scores, bboxes = predict(model_number, image_path=image_path)
+    labels, scores, bboxes = predict(model_number, cv_img=img)
 
