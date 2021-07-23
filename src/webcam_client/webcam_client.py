@@ -8,6 +8,7 @@ import uuid
 
 import boto3
 import cv2
+import numpy as np
 
 from datetime import datetime
 from pathlib import Path
@@ -25,6 +26,11 @@ CAMERA_ID = socket.gethostname()
 # List of valid resolutions
 RESOLUTION = {'1080p': (1920, 1080), '720p': (1280, 720), '480p': (858, 480), 'training': (300, 300)}
 
+CLASS_MAP = {
+    1: 'nike',
+    2: 'swoosh',
+    3: 'human'
+}
 
 def overlap_percent(bbox1, bbox2):
     # calculates the overlap ratio given 1 rectangle with corners l1 and r2 and
@@ -133,16 +139,32 @@ def draw_label(img, bbox, label,
     cv2.putText(img, label, (x, y), font, font_scale, text_color, thickness)
 
 
-def annotate_frame(frame, response_dict):
-    labels_to_annotate = {
-        'Person': (255, 0, 0),  # cv2 is BGR, so this is blue
-        'AWSLogo': (0, 255, 0)
-    }
+def annotate_frame(frame, labels, scores, bboxes):
+    for i, label in enumerate(labels):
+        if CLASS_MAP[label] == 'swoosh' or CLASS_MAP[label] == 'nike':
+            bbox = bboxes[i]
+            bbox_min, bbox_max = convert_bboxes_dims(frame, bbox)
 
-    for label, color in labels_to_annotate.items():
-        for p in response_dict['labels'][label]['Instances']:
-            bbox = resize_bbox(frame, p['BoundingBox'])
-            draw_bounding_box(frame, bbox, color)
+            blurred_frame = cv2.blur(frame,(25,25),cv2.BORDER_DEFAULT)
+
+            mask = np.zeros(frame.shape, dtype=np.uint8)
+            mask = cv2.rectangle(mask, bbox_min, bbox_max, (255,255,255), -1)
+
+            frame = np.where(mask!=np.array([255, 255, 255]), frame, blurred_frame)
+
+        if CLASS_MAP[label]=='human':
+            bbox = bboxes[i]
+            bbox_min, bbox_max = convert_bboxes_dims(frame, bbox)
+
+            cv2.putText(
+                frame, CLASS_MAP[label], (bbox_min[0], bbox_min[1]-5),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.75, (255, 0, 0), 2)
+
+            cv2.rectangle(frame, bbox_min, bbox_max, (255,0,0), 1)
+
+
+    return frame
+
 
 
 def detect_logo(frame):
@@ -189,11 +211,21 @@ def save_jpeg_to_temp(jpeg, destination, picture_name):
         f.write(jpeg)
 
 
-def convert_bboxes_dims(img_size, factor=384):
-    imgf_w = img_size.shape[1] / factor
-    imgf_h = img_size.shape[0] / factor
+def convert_bboxes_dims(img, bbox, factor=384):
+    """
+    Resize the bounding box to frame dimensions
 
-    return imgf_w, imgf_h
+    Returns:
+        bbox_min
+        bbox_max
+    """
+    xf = img.shape[1] / factor
+    yf = img.shape[0] / factor
+
+    bbox_min = (int(bbox.xmin*xf), int(bbox.ymin*yf))
+    bbox_max = (int(bbox.xmax*xf), int(bbox.ymax*yf))
+
+    return bbox_min, bbox_max
 
 
 def lambda_handler(event, context):
@@ -226,22 +258,7 @@ def lambda_handler(event, context):
 
             # Inference time
             labels, scores, bboxes = predict_from_model(model_type, model, cv_img=frame)
-
-            for i, label in enumerate(labels):
-                if label == 2: #TODO: make it so it draws a box around human and obfuscates nike and swoosh
-                    bbox = bboxes[i]
-                    xf, yf = convert_bboxes_dims(frame)
-                    bbox_min = (int(bbox.xmin*xf), int(bbox.ymin*yf))
-                    bbox_max = (int(bbox.xmax*xf), int(bbox.ymax*yf))
-
-                    # TODO: label should be a mapping to the text desc instead of id
-                    cv2.putText(
-                        frame, "SWOOSH", bbox_min,
-                        cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
-
-                    cv2.rectangle(frame, bbox_min, bbox_max, (255,0,0), -1)
-                if label==3:
-                    print("HUMAN!")
+            frame = annotate_frame(frame, labels, scores, bboxes)
 
             cv2.imshow(winname, frame)
 
