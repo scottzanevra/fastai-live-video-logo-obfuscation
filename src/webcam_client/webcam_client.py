@@ -211,7 +211,7 @@ def save_jpeg_to_temp(jpeg, destination, picture_name):
         f.write(jpeg)
 
 
-def convert_bboxes_dims(img, bbox, factor=384):
+def convert_bboxes_dims(img, bbox, size=384):
     """
     Resize the bounding box to frame dimensions
 
@@ -223,15 +223,13 @@ def convert_bboxes_dims(img, bbox, factor=384):
     w = img.shape[1]
     h = img.shape[0]
 
-    xf = w / factor
-    yf = h / factor
+    # Images are padded then resized in transforms before predict.
+    # Since width > height always for webcam frames we just need height padding (ypad)
+    xf = w / size
+    ypad = (size - (h/xf))/2
 
-#     print(f"xf: {xf}\t yf: {yf}")
-
-    ypad = (w-h)/(factor*2)
-
-    bbox_min = (int(bbox.xmin*xf), int((bbox.ymin*yf)-ypad))
-    bbox_max = (int(bbox.xmax*xf), int((bbox.ymax*yf)-ypad))
+    bbox_min = (int(bbox.xmin*xf), int((bbox.ymin-ypad)*xf))
+    bbox_max = (int(bbox.xmax*xf), int((bbox.ymax-ypad)*xf))
 
     return bbox_min, bbox_max
 
