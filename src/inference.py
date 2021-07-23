@@ -66,18 +66,13 @@ def predict(model_number, image_path=None, cv_img=None):
     infer_ds = convert_img_to_ds(img_pil)
     preds = model_type.predict(model, infer_ds, keep_images=True)
     for x in preds[0].pred.detection.components:
-        print(x)
         if 'ScoresRecordComponent' in str(x):
             scores = x.scores
-            print(scores)
         if 'InstancesLabelsRecordComponent' in str(x):
             labels = x.label_ids
-            print(labels)
         if 'BBoxesRecordComponen' in str(x):
             bboxes = x.bboxes
-            print(bboxes)
 
-    show_preds(preds=preds[0:1])
     return labels, scores, bboxes
 
 image_path = "data/test/image1.jpg"
@@ -87,8 +82,10 @@ model_number = 1
 
 if __name__ == "__main__":
     start = time.time()
-    predict(model_number, cv_img=img)
-
-    labels, scores, bboxes = predict(model_number, image_path=image_path)
     labels, scores, bboxes = predict(model_number, cv_img=img)
+    print(f'Took {time.time()-start:.2f} seconds to predict cv2 image')
+
+    start = time.time()
+    labels, scores, bboxes = predict(model_number, cv_img=img)
+    print(f'Took {time.time()-start:.2f} seconds to predict and load image from path')
 
