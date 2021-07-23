@@ -32,29 +32,16 @@ CLASS_MAP = {
     3: 'human'
 }
 
-def overlap_percent(bbox1, bbox2):
-    # calculates the overlap ratio given 1 rectangle with corners l1 and r2 and
-    # the other with corners l2 and r2
-    l1 = bbox1[0]
-    r1 = bbox1[1]
-    l2 = bbox2[0]
-    r2 = bbox2[1]
-    x = 0
-    y = 1
+def overlap_area(a, b):
+    dx = min(a.xmax, b.xmax) - max(a.xmin, b.xmin)
+    dy = min(a.ymax, b.ymax) - max(a.ymin, b.ymin)
+    if (dx>=0) and (dy>=0):
+        return dx*dy
+    return 0
 
-    x_dist = (min(r1[x], r2[x]) -
-              max(l1[x], l2[x]))
-    y_dist = (min(r1[y], r2[y]) -
-              max(l1[y], l2[y]))
-    areaI = 0
-    if x_dist > 0 and y_dist > 0:
-        areaI = x_dist * y_dist
-
-    area1 = abs( (l1[0]-r1[0])*(l1[1]-r1[1]) )
-    overlap = areaI / area1
-
-    return overlap
-
+def overlap_percent(a,b):
+    a_area = (a.xmax - a.xmin) * (a.ymax - a.ymin)
+    return overlap_area(a,b) / a_area * 100
 
 def select_bbox(labels, scores, bboxes):
     person_label = 3 # label of person
@@ -140,17 +127,37 @@ def draw_label(img, bbox, label,
 
 
 def annotate_frame(frame, labels, scores, bboxes):
+
+    human_bboxes = []
+    logo_bboxes = []
+
+    for i, label in enumerate(labels):
+        if CLASS_MAP[label]=='human':
+            human_bboxes.append(bboxes[i])
+
     for i, label in enumerate(labels):
         if CLASS_MAP[label] == 'swoosh' or CLASS_MAP[label] == 'nike':
             bbox = bboxes[i]
             bbox_min, bbox_max = convert_bboxes_dims(frame, bbox)
 
-            blurred_frame = cv2.blur(frame,(25,25),cv2.BORDER_DEFAULT)
+            # Check overlap with human_bboxes
+            max_percent = 0
+            if len(human_bboxes) > 0:
+                max_percent = max([overlap_percent(bbox, hbbox) for hbbox in human_bboxes])
 
-            mask = np.zeros(frame.shape, dtype=np.uint8)
-            mask = cv2.rectangle(mask, bbox_min, bbox_max, (255,255,255), -1)
+            if max_percent > 80: #TODO: magic number
+                # On human, blur out logo
+                blurred_frame = cv2.blur(frame,(25,25),cv2.BORDER_DEFAULT)
+                mask = np.zeros(frame.shape, dtype=np.uint8)
+                mask = cv2.rectangle(mask, bbox_min, bbox_max, (255,255,255), -1)
+                frame = np.where(mask!=np.array([255, 255, 255]), frame, blurred_frame)
+            else:
+                # Not on human, but let's draw a rectangle to detect logo anyways
+                 cv2.rectangle(frame, bbox_min, bbox_max, (255,255,255), 2)
 
-            frame = np.where(mask!=np.array([255, 255, 255]), frame, blurred_frame)
+            cv2.putText(
+                frame, f'{CLASS_MAP[label]} overlap {max_percent}%', (bbox_min[0], bbox_min[1]-5),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.75, (255, 255, 255), 2)
 
         if CLASS_MAP[label]=='human':
             bbox = bboxes[i]
@@ -162,9 +169,7 @@ def annotate_frame(frame, labels, scores, bboxes):
 
             cv2.rectangle(frame, bbox_min, bbox_max, (255,0,0), 1)
 
-
     return frame
-
 
 
 def detect_logo(frame):
@@ -269,13 +274,13 @@ def lambda_handler(event, context):
             cv2.imshow(winname, frame)
 
             # Save images based on timestamp
-#             frame_time = datetime.now()
-#             frame_name = f'{frame_time.strftime("frame-%y-%m-%d_%H-%M-%S%f")}'
-#             frame_path = Path(frame_dir / frame_name)
-#
-#             jpeg = convert_to_jpg(frame, RESOLUTION['training'])
-#             save_jpeg_to_temp(jpeg, frame_dir, frame_name)
-#             log.info(f"Saving picture {frame_name} to {frame_dir}")
+            frame_time = datetime.now()
+            frame_name = f'{frame_time.strftime("frame-%y-%m-%d_%H-%M-%S%f")}'
+            frame_path = Path(frame_dir / frame_name)
+
+            jpeg = convert_to_jpg(frame, RESOLUTION['training'])
+            save_jpeg_to_temp(jpeg, frame_dir, frame_name)
+            log.info(f"Saving picture {frame_name} to {frame_dir}")
 
         frame_count += 1
 
