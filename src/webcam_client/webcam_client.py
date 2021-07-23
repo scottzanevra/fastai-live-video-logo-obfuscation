@@ -219,11 +219,19 @@ def convert_bboxes_dims(img, bbox, factor=384):
         bbox_min
         bbox_max
     """
-    xf = img.shape[1] / factor
-    yf = img.shape[0] / factor
 
-    bbox_min = (int(bbox.xmin*xf), int(bbox.ymin*yf))
-    bbox_max = (int(bbox.xmax*xf), int(bbox.ymax*yf))
+    w = img.shape[1]
+    h = img.shape[0]
+
+    xf = w / factor
+    yf = h / factor
+
+#     print(f"xf: {xf}\t yf: {yf}")
+
+    ypad = (w-h)/(factor*2)
+
+    bbox_min = (int(bbox.xmin*xf), int((bbox.ymin*yf)-ypad))
+    bbox_max = (int(bbox.xmax*xf), int((bbox.ymax*yf)-ypad))
 
     return bbox_min, bbox_max
 
@@ -263,13 +271,13 @@ def lambda_handler(event, context):
             cv2.imshow(winname, frame)
 
             # Save images based on timestamp
-            frame_time = datetime.now()
-            frame_name = f'{frame_time.strftime("frame-%y-%m-%d_%H-%M-%S%f")}'
-            frame_path = Path(frame_dir / frame_name)
-
-            jpeg = convert_to_jpg(frame, RESOLUTION['training'])
-            save_jpeg_to_temp(jpeg, frame_dir, frame_name)
-            log.info(f"Saving picture {frame_name} to {frame_dir}")
+#             frame_time = datetime.now()
+#             frame_name = f'{frame_time.strftime("frame-%y-%m-%d_%H-%M-%S%f")}'
+#             frame_path = Path(frame_dir / frame_name)
+#
+#             jpeg = convert_to_jpg(frame, RESOLUTION['training'])
+#             save_jpeg_to_temp(jpeg, frame_dir, frame_name)
+#             log.info(f"Saving picture {frame_name} to {frame_dir}")
 
         frame_count += 1
 
