@@ -9,6 +9,8 @@ import uuid
 import boto3
 import cv2
 
+from datetime import datetime
+from pathlib import Path
 from src.inference import predict
 
 logging.basicConfig()
@@ -22,7 +24,7 @@ CAMERA_ID = socket.gethostname()
 
 # List of valid resolutions
 RESOLUTION = {'1080p': (1920, 1080), '720p': (1280, 720), '480p': (858, 480), 'training': (300, 300)}
-TMP_DIR = "tmp"
+
 
 def load_model(model_path, model_number, device):
     model_type, model = model_selection(model_number)
@@ -230,12 +232,16 @@ def lambda_handler(event, context):
     cap = cv2.VideoCapture(0)
     time.sleep(1)  # just to avoid that initial black frame
 
-    frame_skip = 30
+    frame_skip = 90
     frame_count = 0
 
     winname = 'Press ESC or Q to quit'
     cv2.namedWindow(winname)
     cv2.moveWindow(winname, 50, 50)
+
+    dir_time = datetime.now()
+    frame_dir = Path(f'tmp/{dir_time.strftime("camera-frames-%y-%m-%d_%H-%M-%S")}')
+    os.makedirs(frame_dir, exist_ok=True)
 
     while True:
         # Grab a single frame of video
@@ -245,7 +251,7 @@ def lambda_handler(event, context):
 
         if frame_count % frame_skip == 0:  # only analyze every n frames
 
-            # Inference timy
+            # Inference time
             labels, scores, bboxes = predict(1, cv_img=frame)
 
             for i, label in enumerate(labels):
@@ -264,13 +270,14 @@ def lambda_handler(event, context):
 
             cv2.imshow(winname, frame)
 
-            # Create random string to use as teh image name
-            pic_id = str(uuid.uuid4())
-            jpeg = convert_to_jpg(frame, RESOLUTION['training'])
-            make_directory(TMP_DIR)
-            save_jpeg_to_temp(jpeg, TMP_DIR, pic_id)
-            log.info(f"Saving picture {pic_id} to {TMP_DIR}")
+            # Save images based on timestamp
+            frame_time = datetime.now()
+            frame_name = f'{frame_time.strftime("frame-%y-%m-%d_%H-%M-%S%f")}'
+            frame_path = Path(frame_dir / frame_name)
 
+            jpeg = convert_to_jpg(frame, RESOLUTION['training'])
+            save_jpeg_to_temp(jpeg, frame_dir, frame_name)
+            log.info(f"Saving picture {pic_id} to {TMP_DIR}")
 
         frame_count += 1
 
