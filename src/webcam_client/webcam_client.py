@@ -4,7 +4,6 @@ import logging
 import os
 import socket
 import time
-import uuid
 
 import boto3
 import cv2
@@ -22,64 +21,93 @@ REGION = os.environ.get('REGION', 'ap-southeast-2')
 LAMBDA = boto3.client('lambda', region_name=REGION)
 CAMERA_ID = socket.gethostname()
 
-
 # List of valid resolutions
 RESOLUTION = {'1080p': (1920, 1080), '720p': (1280, 720), '480p': (858, 480), 'training': (300, 300)}
 
+# Text labels
 CLASS_MAP = {
     1: 'nike',
     2: 'swoosh',
     3: 'human'
 }
 
-def overlap_area(a, b):
-    dx = min(a.xmax, b.xmax) - max(a.xmin, b.xmin)
-    dy = min(a.ymax, b.ymax) - max(a.ymin, b.ymin)
-    if (dx>=0) and (dy>=0):
+# Overlap percentage threshold for logo boxes
+LOGO_OVERLAP_THRESHOLD = 80
+
+
+def overlap_area(bbox1, bbox2):
+    """
+    Calculates overlap area between two bounding boxes.
+    :param bbox1: (logo bounding box)
+    :param bbox2: (human bounding box)
+    :return: Overlap area, 0 if no overlap
+    """
+    dx = min(bbox1.xmax, bbox2.xmax) - max(bbox1.xmin, bbox2.xmin)
+    dy = min(bbox1.ymax, bbox2.ymax) - max(bbox1.ymin, bbox2.ymin)
+    if (dx >= 0) and (dy >= 0):
         return dx*dy
     return 0
 
-def overlap_percent(a,b):
-    a_area = (a.xmax - a.xmin) * (a.ymax - a.ymin)
-    return overlap_area(a,b) / a_area * 100
+
+def overlap_percent(bbox1, bbox2):
+    """
+    Gets percentage of area of bbox1 which overlaps with bbox2
+    :param bbox1: (logo bounding box)
+    :param bbox2: (human bounding box)
+    :return:
+    """
+    a_area = (bbox1.xmax - bbox1.xmin) * (bbox1.ymax - bbox1.ymin)
+    return overlap_area(bbox1, bbox2) / a_area * 100
 
 
 def annotate_frame(frame, labels, scores, bboxes):
+    """
+    Annotates a frame with scaled bounding boxes and obfuscated regions
+    :param frame: frame to annotate
+    :param labels: predicted labels
+    :param scores: confidence scores of predictions
+    :param bboxes: bounding boxes defining labelled regions
+    :return: annotated frame
+    """
 
+    # Get a list of all human bounding boxes
     human_bboxes = []
-    logo_bboxes = []
-
     for i, label in enumerate(labels):
-        if CLASS_MAP[label]=='human':
+        if CLASS_MAP[label] == 'human':
             human_bboxes.append(bboxes[i])
 
+    # For each label, annotate and obfuscate if logo
     for i, label in enumerate(labels):
         if CLASS_MAP[label] == 'swoosh' or CLASS_MAP[label] == 'nike':
             bbox = bboxes[i]
-            bbox_min, bbox_max = convert_bboxes_dims(frame, bbox)
+            bbox_min, bbox_max = scale_bbox_dims(frame, bbox)
 
             # Check overlap with human_bboxes
+            # Get only the max overlaps with human bboxes
+            # i.e. if one logo appears in two human bounding boxes,
+            # then just take the max overlap %
             max_percent = 0
             if len(human_bboxes) > 0:
                 max_percent = max([overlap_percent(bbox, hbbox) for hbbox in human_bboxes])
 
-            if max_percent > 80: #TODO: magic number
-                # On human, blur out logo
-                blurred_frame = cv2.blur(frame,(25,25),cv2.BORDER_DEFAULT)
+            if max_percent > LOGO_OVERLAP_THRESHOLD:
+                # On human, blur out logo via masking
+                blurred_frame = cv2.blur(frame, (25, 25), cv2.BORDER_DEFAULT)
                 mask = np.zeros(frame.shape, dtype=np.uint8)
                 mask = cv2.rectangle(mask, bbox_min, bbox_max, (255,255,255), -1)
-                frame = np.where(mask!=np.array([255, 255, 255]), frame, blurred_frame)
+                frame = np.where(mask != np.array([255, 255, 255]), frame, blurred_frame)
             else:
                 # Not on human, but let's draw a rectangle to detect logo anyways
                  cv2.rectangle(frame, bbox_min, bbox_max, (255,255,255), 2)
 
             cv2.putText(
-                frame, f'{CLASS_MAP[label]} overlap {max_percent}%', (bbox_min[0], bbox_min[1]-5),
+                frame, f'{CLASS_MAP[label]} (overlap {max_percent}%)',
+                (bbox_min[0], bbox_min[1]-5), #
                 cv2.FONT_HERSHEY_SIMPLEX, 0.75, (255, 255, 255), 2)
 
-        if CLASS_MAP[label]=='human':
+        if CLASS_MAP[label] == 'human':
             bbox = bboxes[i]
-            bbox_min, bbox_max = convert_bboxes_dims(frame, bbox)
+            bbox_min, bbox_max = scale_bbox_dims(frame, bbox)
 
             cv2.putText(
                 frame, CLASS_MAP[label], (bbox_min[0], bbox_min[1]-5),
@@ -134,15 +162,16 @@ def save_jpeg_to_temp(jpeg, destination, picture_name):
         f.write(jpeg)
 
 
-def convert_bboxes_dims(img, bbox, size=384):
+def scale_bbox_dims(img, bbox, size=384):
     """
-    Resize the bounding box to frame dimensions
-
-    Returns:
-        bbox_min
-        bbox_max
+    Rescale and translate label bounding boxes from their inference transformed state.
+    :param img: cv2 image object
+    :param bbox:
+    :param size: size image was scaled to during predict transformation
+    :return: scaled bboxes to fit img
     """
 
+    # Get actual height and widths of webcam frame
     w = img.shape[1]
     h = img.shape[0]
 
