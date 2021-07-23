@@ -92,7 +92,7 @@ def annotate_frame(frame, labels, scores, bboxes):
 
             if max_percent > LOGO_OVERLAP_THRESHOLD:
                 # On human, blur out logo via masking
-                blurred_frame = cv2.blur(frame, (25, 25), cv2.BORDER_DEFAULT)
+                blurred_frame = cv2.blur(frame, (45, 45), cv2.BORDER_DEFAULT)
                 mask = np.zeros(frame.shape, dtype=np.uint8)
                 mask = cv2.rectangle(mask, bbox_min, bbox_max, (255,255,255), -1)
                 frame = np.where(mask != np.array([255, 255, 255]), frame, blurred_frame)
@@ -101,17 +101,18 @@ def annotate_frame(frame, labels, scores, bboxes):
                  cv2.rectangle(frame, bbox_min, bbox_max, (255,255,255), 2)
 
             cv2.putText(
-                frame, f'{CLASS_MAP[label]} (overlap {max_percent}%)',
-                (bbox_min[0], bbox_min[1]-5), #
-                cv2.FONT_HERSHEY_SIMPLEX, 0.75, (255, 255, 255), 2)
+                frame, f'{CLASS_MAP[label]} {scores[i]:.2f} (overlap {max_percent:.2f}%)',
+                (bbox_min[0], bbox_min[1]-5),  # offset slightly so text sits above bbox
+                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
 
         if CLASS_MAP[label] == 'human':
             bbox = bboxes[i]
             bbox_min, bbox_max = scale_bbox_dims(frame, bbox)
 
             cv2.putText(
-                frame, CLASS_MAP[label], (bbox_min[0], bbox_min[1]-5),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.75, (255, 0, 0), 2)
+                frame, f'{CLASS_MAP[label]} {scores[i]:.2f}',
+                (bbox_min[0], bbox_min[1]-5),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2)
 
             cv2.rectangle(frame, bbox_min, bbox_max, (255,0,0), 1)
 
@@ -191,7 +192,7 @@ def lambda_handler(event, context):
     cap = cv2.VideoCapture(0)
     time.sleep(1)  # just to avoid that initial black frame
 
-    frame_skip = 60
+    frame_skip = 10
     frame_count = 0
 
     winname = 'Press ESC or Q to quit'
@@ -211,9 +212,7 @@ def lambda_handler(event, context):
         ret, frame = cap.read()
         if not ret:
             raise RuntimeError('Failed to capture frame')
-
         if frame_count % frame_skip == 0:  # only analyze every n frames
-
             # Inference time
             labels, scores, bboxes = predict_from_model(model_type, model, cv_img=frame)
             frame = annotate_frame(frame, labels, scores, bboxes)
