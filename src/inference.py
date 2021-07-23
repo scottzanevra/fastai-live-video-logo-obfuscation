@@ -75,17 +75,45 @@ def predict(model_number, image_path=None, cv_img=None):
 
     return labels, scores, bboxes
 
+
+def predict_from_model(model_type, model, image_path=None, cv_img=None):
+
+    img_pil=None
+    if image_path:
+        img_pil = Image.open(image_path)
+    else:
+        img = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
+        img_pil = Image.fromarray(img)
+
+    infer_ds = convert_img_to_ds(img_pil)
+    preds = model_type.predict(model, infer_ds, keep_images=True)
+
+    for x in preds[0].pred.detection.components:
+        if 'ScoresRecordComponent' in str(x):
+            scores = x.scores
+        if 'InstancesLabelsRecordComponent' in str(x):
+            labels = x.label_ids
+        if 'BBoxesRecordComponen' in str(x):
+            bboxes = x.bboxes
+
+    return labels, scores, bboxes
+
+
+
+
 image_path = "data/test/image1.jpg"
 img = cv2.imread(image_path)
 
 model_number = 1
 
 if __name__ == "__main__":
+    model_type, model = load_model(1)
+
     start = time.time()
-    labels, scores, bboxes = predict(model_number, cv_img=img)
+    labels, scores, bboxes = predict_from_model(model_type, model, cv_img=img)
     print(f'Took {time.time()-start:.2f} seconds to predict cv2 image')
 
     start = time.time()
-    labels, scores, bboxes = predict(model_number, cv_img=img)
+    labels, scores, bboxes = predict_from_model(model_type, model, cv_img=img)
     print(f'Took {time.time()-start:.2f} seconds to predict and load image from path')
 

@@ -11,7 +11,7 @@ import cv2
 
 from datetime import datetime
 from pathlib import Path
-from src.inference import predict
+from src.inference import predict_from_model, load_model
 
 logging.basicConfig()
 log = logging.getLogger()
@@ -24,34 +24,6 @@ CAMERA_ID = socket.gethostname()
 
 # List of valid resolutions
 RESOLUTION = {'1080p': (1920, 1080), '720p': (1280, 720), '480p': (858, 480), 'training': (300, 300)}
-
-
-def load_model(model_path, model_number, device):
-    model_type, model = model_selection(model_number)
-    model.load_state_dict(torch.load(model_path, map_location=device))
-    return model_type, model
-
-def convert_img_to_ds(img):
-    infer_tfms = tfms.A.Adapter([*tfms.A.resize_and_pad(size=384), tfms.A.Normalize()])
-    return Dataset.from_images([img], infer_tfms)
-
-# def predict(model_type, model, img):
-#     infer_ds = convert_img_to_ds(img)
-#     preds = model_type.predict(model, infer_ds, keep_images=True)
-#     for x in preds[0].detection.components:
-#         if 'ScoresRecordComponent' in str(x):
-#             scores = x.scores
-#         if 'InstancesLabelsRecordComponent' in str(x):
-#             labels = x.label_ids
-#         if 'BBoxesRecordComponen' in str(x):
-#             bboxes = []
-#             for bbox in x.bboxes:
-#                 min = [bbox.xmin,bbox.ymin]
-#                 max = [bbox.xmax,bbox.ymax]
-#                 bboxes.append([min,max])
-#
-#     return labels, scores, bboxes
-#
 
 
 def overlap_percent(bbox1, bbox2):
@@ -125,9 +97,6 @@ def obfuscate(img,bboxes_remove):
 
     return img2
 
-def make_directory(dir_path):
-    if not os.path.exists(dir_path):
-        os.makedirs(dir_path)
 
 # !Todo - does fastai have a function to do this
 def resize_bbox(img, bbox):
@@ -232,16 +201,20 @@ def lambda_handler(event, context):
     cap = cv2.VideoCapture(0)
     time.sleep(1)  # just to avoid that initial black frame
 
-    frame_skip = 90
+    frame_skip = 60
     frame_count = 0
 
     winname = 'Press ESC or Q to quit'
     cv2.namedWindow(winname)
     cv2.moveWindow(winname, 50, 50)
 
+    # Create tmp dir for this round of webcam frames
     dir_time = datetime.now()
     frame_dir = Path(f'tmp/{dir_time.strftime("camera-frames-%y-%m-%d_%H-%M-%S")}')
     os.makedirs(frame_dir, exist_ok=True)
+
+    # Load model for predictions
+    model_type, model = load_model(1)
 
     while True:
         # Grab a single frame of video
@@ -252,7 +225,7 @@ def lambda_handler(event, context):
         if frame_count % frame_skip == 0:  # only analyze every n frames
 
             # Inference time
-            labels, scores, bboxes = predict(1, cv_img=frame)
+            labels, scores, bboxes = predict_from_model(model_type, model, cv_img=frame)
 
             for i, label in enumerate(labels):
                 if label == 2: #TODO: make it so it draws a box around human and obfuscates nike and swoosh
@@ -267,6 +240,8 @@ def lambda_handler(event, context):
                         cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
 
                     cv2.rectangle(frame, bbox_min, bbox_max, (255,0,0), -1)
+                if label==3:
+                    print("HUMAN!")
 
             cv2.imshow(winname, frame)
 
@@ -277,7 +252,7 @@ def lambda_handler(event, context):
 
             jpeg = convert_to_jpg(frame, RESOLUTION['training'])
             save_jpeg_to_temp(jpeg, frame_dir, frame_name)
-            log.info(f"Saving picture {pic_id} to {TMP_DIR}")
+            log.info(f"Saving picture {frame_name} to {frame_dir}")
 
         frame_count += 1
 
