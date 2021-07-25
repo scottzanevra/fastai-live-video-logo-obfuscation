@@ -60,7 +60,36 @@ def overlap_percent(bbox1, bbox2):
     return overlap_area(bbox1, bbox2) / a_area * 100
 
 
-def annotate_frame(frame, labels, scores, bboxes):
+def annotate_info(frame, frame_skip, display_bounding_boxes):
+    """
+    Displays webcam info + toggle features available
+
+    :param frame: frame to annotate
+    :param frame_skip: number of frames currently being skipped
+    :param display_bounding_boxes: whether we are displaying bounding boxes
+    :return: annotated frame 
+    """
+
+    info_text = f"Clothing logo obfuscator. \n\n" \
+                f"press 'b' to toggle bounding boxes \n" \
+                f"press 'a' to decrease frame skip \n" \
+                f"press 's' to increase frame skip \n\n\n" \
+                f"display bounding boxes: {display_bounding_boxes}\n" \
+                f"frames skipped: {frame_skip}"
+
+    y0, dy = 50, 20
+    for i, line in enumerate(info_text.split('\n')):
+        y = y0 + i*dy
+        cv2.putText(
+            frame, line, (50, y),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7 if i == 0 else 0.65,
+            (255, 255, 255),
+            2 if i == 0 else 1
+        )
+
+
+def annotate_bounding_boxes(frame, labels, scores, bboxes):
     """
     Annotates a frame with scaled bounding boxes and obfuscated regions
     :param frame: frame to annotate
@@ -103,7 +132,7 @@ def annotate_frame(frame, labels, scores, bboxes):
             cv2.putText(
                 frame, f'{CLASS_MAP[label]} {scores[i]:.2f} (overlap {max_percent:.2f}%)',
                 (bbox_min[0], bbox_min[1]-5),  # offset slightly so text sits above bbox
-                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
 
         if CLASS_MAP[label] == 'human':
             bbox = bboxes[i]
@@ -112,9 +141,9 @@ def annotate_frame(frame, labels, scores, bboxes):
             cv2.putText(
                 frame, f'{CLASS_MAP[label]} {scores[i]:.2f}',
                 (bbox_min[0], bbox_min[1]-5),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2)
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1)
 
-            cv2.rectangle(frame, bbox_min, bbox_max, (255,0,0), 1)
+            cv2.rectangle(frame, bbox_min, bbox_max, (255, 0, 0), 1)
 
     return frame
 
@@ -143,7 +172,7 @@ def detect_logo(frame):
     # Annotate bounding boxes to frame
     response_dict = json.loads(response['Payload'].read())
     if 'FunctionError' not in response:
-        annotate_frame(frame, response_dict)
+        annotate_bounding_boxes(frame, response_dict)
     else:
         print(response_dict['errorMessage'])
 
@@ -157,9 +186,15 @@ def convert_to_jpg(frame, resolution):
     return jpeg
 
 
-def save_jpeg_to_temp(jpeg, destination, picture_name):
-    file_name = f"{destination}/{picture_name}.jpeg"
-    with open(file_name, 'wb') as f:
+def save_jpeg_to_temp(frame, jpeg_dir):
+    frame_time = datetime.now()
+    frame_name = f'{frame_time.strftime("frame-%y-%m-%d_%H-%M-%S%f.jpeg")}'
+    frame_path = Path(jpeg_dir / frame_name)
+
+    jpeg = convert_to_jpg(frame, RESOLUTION['training'])
+
+    log.info(f"Saving picture to {frame_path}")
+    with open(frame_path, 'wb') as f:
         f.write(jpeg)
 
 
@@ -207,26 +242,27 @@ def lambda_handler(event, context):
     # Load model for predictions
     model_type, model = load_model(1)
 
+    # Toogle boolean for displaying bounding boxes
+    display_bounding_box = True
+
     while True:
         # Grab a single frame of video
         ret, frame = cap.read()
         if not ret:
             raise RuntimeError('Failed to capture frame')
         if frame_count % frame_skip == 0:  # only analyze every n frames
-            # Inference time
-            labels, scores, bboxes = predict_from_model(model_type, model, cv_img=frame)
-            frame = annotate_frame(frame, labels, scores, bboxes)
+
+            annotate_info(frame, frame_skip, display_bounding_box)
+
+            if display_bounding_box:
+                # Inference time
+                labels, scores, bboxes = predict_from_model(model_type, model, cv_img=frame)
+                frame = annotate_bounding_boxes(frame, labels, scores, bboxes)
 
             cv2.imshow(winname, frame)
 
             # Save images based on timestamp
-            frame_time = datetime.now()
-            frame_name = f'{frame_time.strftime("frame-%y-%m-%d_%H-%M-%S%f")}'
-            frame_path = Path(frame_dir / frame_name)
-
-            jpeg = convert_to_jpg(frame, RESOLUTION['training'])
-            save_jpeg_to_temp(jpeg, frame_dir, frame_name)
-            log.info(f"Saving picture {frame_name} to {frame_dir}")
+            # save_jpeg_to_temp(frame, frame_dir)
 
         frame_count += 1
 
@@ -234,6 +270,17 @@ def lambda_handler(event, context):
         k = cv2.waitKey(1) & 0xFF
         if k == 27 or k == ord('q'):
             break
+
+        # Toggle displaying bounding boxes
+        if k == ord('b'):
+            display_bounding_box = not display_bounding_box
+        if k == ord('a'):
+            if frame_skip >= 6:
+                frame_skip -= 5
+            else:
+                frame_skip = 1
+        if k == ord('s'):
+            frame_skip += 5
 
     # When everything done, release the capture
     cap.release()
