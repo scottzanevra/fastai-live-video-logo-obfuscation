@@ -60,22 +60,27 @@ def overlap_percent(bbox1, bbox2):
     return overlap_area(bbox1, bbox2) / a_area * 100
 
 
-def annotate_info(frame, frame_skip, display_bounding_boxes):
+def annotate_info(frame, frame_skip, display_info, display_bounding_boxes):
     """
     Displays webcam info + toggle features available
 
     :param frame: frame to annotate
     :param frame_skip: number of frames currently being skipped
+    :param: display_info: whether to display info text at all
     :param display_bounding_boxes: whether we are displaying bounding boxes
-    :return: annotated frame 
+    :return: annotated frame
     """
 
     info_text = f"Clothing logo obfuscator. \n\n" \
+                f"press 'i' to toggle info \n" \
                 f"press 'b' to toggle bounding boxes \n" \
                 f"press 'a' to decrease frame skip \n" \
                 f"press 's' to increase frame skip \n\n\n" \
                 f"display bounding boxes: {display_bounding_boxes}\n" \
                 f"frames skipped: {frame_skip}"
+
+    if not display_info:
+        return
 
     y0, dy = 50, 20
     for i, line in enumerate(info_text.split('\n')):
@@ -244,6 +249,7 @@ def lambda_handler(event, context):
 
     # Toogle boolean for displaying bounding boxes
     display_bounding_box = True
+    display_info = True
 
     while True:
         # Grab a single frame of video
@@ -252,7 +258,7 @@ def lambda_handler(event, context):
             raise RuntimeError('Failed to capture frame')
         if frame_count % frame_skip == 0:  # only analyze every n frames
 
-            annotate_info(frame, frame_skip, display_bounding_box)
+            annotate_info(frame, frame_skip, display_info, display_bounding_box)
 
             if display_bounding_box:
                 # Inference time
@@ -281,6 +287,8 @@ def lambda_handler(event, context):
                 frame_skip = 1
         if k == ord('s'):
             frame_skip += 5
+        if k == ord('i'):
+            display_info = not display_info
 
     # When everything done, release the capture
     cap.release()
