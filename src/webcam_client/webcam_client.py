@@ -31,6 +31,13 @@ CLASS_MAP = {
     3: 'human'
 }
 
+COLOR_MAP = {
+    'info': (255, 255, 255),
+    'nike': (204, 204, 0),
+    'swoosh': (255, 255, 0),
+    'human': (102, 255, 255),
+}
+
 # Overlap percentage threshold for logo boxes
 LOGO_OVERLAP_THRESHOLD = 80
 
@@ -90,7 +97,7 @@ def annotate_info(frame, frame_skip, display_info, display_bounding_boxes, model
             frame, line, (50, y),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.7 if i == 0 else 0.65,
-            (255, 255, 255),
+            COLOR_MAP['info'],
             2 if i == 0 else 1
         )
 
@@ -113,7 +120,7 @@ def annotate_bounding_boxes(frame, labels, scores, bboxes):
 
     # For each label, annotate and obfuscate if logo
     for i, label in enumerate(labels):
-        if CLASS_MAP[label] == 'swoosh' or CLASS_MAP[label] == 'nike':
+        if (CLASS_MAP[label] == 'swoosh' or CLASS_MAP[label] == 'nike') and scores[i] >= 0.5:
             bbox = bboxes[i]
             bbox_min, bbox_max = scale_bbox_dims(frame, bbox)
 
@@ -133,23 +140,23 @@ def annotate_bounding_boxes(frame, labels, scores, bboxes):
                 frame = np.where(mask != np.array([255, 255, 255]), frame, blurred_frame)
             else:
                 # Not on human, but let's draw a rectangle to detect logo anyways
-                 cv2.rectangle(frame, bbox_min, bbox_max, (255,255,255), 2)
+                 cv2.rectangle(frame, bbox_min, bbox_max, COLOR_MAP[CLASS_MAP[label]], 2)
 
             cv2.putText(
                 frame, f'{scores[i]:.2f} {CLASS_MAP[label]} (overlap {max_percent:.2f}%)',
                 (bbox_min[0], bbox_min[1]-5),  # offset slightly so text sits above bbox
-                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, COLOR_MAP[CLASS_MAP[label]], 1)
 
-        if CLASS_MAP[label] == 'human':
+        if CLASS_MAP[label] == 'human' and scores[i] >= 0.5:
             bbox = bboxes[i]
             bbox_min, bbox_max = scale_bbox_dims(frame, bbox)
 
             cv2.putText(
                 frame, f'{scores[i]:.2f} {CLASS_MAP[label]}',
                 (bbox_min[0], bbox_min[1]-5),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1)
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, COLOR_MAP[CLASS_MAP[label]], 1)
 
-            cv2.rectangle(frame, bbox_min, bbox_max, (255, 0, 0), 1)
+            cv2.rectangle(frame, bbox_min, bbox_max, COLOR_MAP[CLASS_MAP[label]], 1)
 
     return frame
 
@@ -246,7 +253,7 @@ def lambda_handler(event, context):
     os.makedirs(frame_dir, exist_ok=True)
 
     # Load model for predictions
-    model_number = 1
+    model_number = 3
     model_type, model = load_model(model_number)
 
     # Toogle boolean for displaying bounding boxes

@@ -34,6 +34,8 @@ def model_selection(model_number):
         backbone = model_type.backbones.small
         # The yolov5 model requires an img_size parameter
         extra_args['img_size'] = image_size
+        # TODO: as per below, this is hacky, should be one return
+        return model_type, model_type.model(backbone=backbone(pretrained=True), num_classes=3, **extra_args)
 
     # Instantiate the model
     # !TODO need to figure out how to get the len of the classmap from the data dict
