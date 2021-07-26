@@ -253,7 +253,7 @@ def lambda_handler(event, context):
     os.makedirs(frame_dir, exist_ok=True)
 
     # Load model for predictions
-    model_number = 3
+    model_number = 1
     model_type, model = load_model(model_number)
 
     # Toogle boolean for displaying bounding boxes
