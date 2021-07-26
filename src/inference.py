@@ -39,11 +39,24 @@ def model_selection(model_number):
     # !TODO need to figure out how to get the len of the classmap from the data dict
     return model_type, model_type.model(backbone=backbone(pretrained=True), num_classes=4, **extra_args)
 
+#
+# def load_model(model_number):
+#     model_type, model = model_selection(model_number)
+#     model_name = f"nikemodel_model_{model_number}_new_100.mm"
+#     model.load_state_dict(torch.load(model_dir/f"{model_name}", map_location=torch.device('cpu')))
+#     return model_type, model
 
 def load_model(model_number):
-    model_type, model = model_selection(model_number)
-    model_name = f"nikemodel_model_{model_number}_new_100.mm"
-    model.load_state_dict(torch.load(model_dir/f"{model_name}", map_location=torch.device('cpu')))
+    # TOOD: hack
+    if model_number == 1:
+        model_name = f"nikemodel_model_{model_number}_new_100.mm"
+        model_type, model = model_selection(model_number)
+        model.load_state_dict(torch.load(model_dir/f"{model_name}", map_location=torch.device('cpu')))
+    else:
+        model_name = f"model_3_unfreeze_20.mm" #  "model_3_unfreeze_20.mm" #"model_3_unfreeze_20.mm"
+        model_type, model = model_selection(model_number)
+        model.load_state_dict(torch.load(f"infer/{model_name}", map_location=torch.device('cpu')))
+
     return model_type, model
 
 
@@ -77,6 +90,15 @@ def predict(model_number, image_path=None, cv_img=None):
 
 
 def predict_from_model(model_type, model, image_path=None, cv_img=None):
+    """
+    Get label predictions for a single image from a loaded model.
+    Need either cv_image or image_path to predict on a single image.
+    :param model_type: model architecture
+    :param model:
+    :param image_path:
+    :param cv_img:
+    :return: prediction labels, scores and bounding box coordinates
+    """
 
     img_pil=None
     if image_path:
@@ -97,8 +119,6 @@ def predict_from_model(model_type, model, image_path=None, cv_img=None):
             bboxes = x.bboxes
 
     return labels, scores, bboxes
-
-
 
 
 image_path = "data/test/image1.jpg"

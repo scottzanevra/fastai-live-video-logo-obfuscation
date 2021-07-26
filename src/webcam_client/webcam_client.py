@@ -60,7 +60,7 @@ def overlap_percent(bbox1, bbox2):
     return overlap_area(bbox1, bbox2) / a_area * 100
 
 
-def annotate_info(frame, frame_skip, display_info, display_bounding_boxes):
+def annotate_info(frame, frame_skip, display_info, display_bounding_boxes, model_number):
     """
     Displays webcam info + toggle features available
 
@@ -77,7 +77,8 @@ def annotate_info(frame, frame_skip, display_info, display_bounding_boxes):
                 f"press 'a' to decrease frame skip \n" \
                 f"press 's' to increase frame skip \n\n\n" \
                 f"display bounding boxes: {display_bounding_boxes}\n" \
-                f"frames skipped: {frame_skip}"
+                f"frames skipped: {frame_skip}\n" \
+                f"model number: {model_number}"
 
     if not display_info:
         return
@@ -135,7 +136,7 @@ def annotate_bounding_boxes(frame, labels, scores, bboxes):
                  cv2.rectangle(frame, bbox_min, bbox_max, (255,255,255), 2)
 
             cv2.putText(
-                frame, f'{CLASS_MAP[label]} {scores[i]:.2f} (overlap {max_percent:.2f}%)',
+                frame, f'{scores[i]:.2f} {CLASS_MAP[label]} (overlap {max_percent:.2f}%)',
                 (bbox_min[0], bbox_min[1]-5),  # offset slightly so text sits above bbox
                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
 
@@ -144,7 +145,7 @@ def annotate_bounding_boxes(frame, labels, scores, bboxes):
             bbox_min, bbox_max = scale_bbox_dims(frame, bbox)
 
             cv2.putText(
-                frame, f'{CLASS_MAP[label]} {scores[i]:.2f}',
+                frame, f'{scores[i]:.2f} {CLASS_MAP[label]}',
                 (bbox_min[0], bbox_min[1]-5),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1)
 
@@ -245,7 +246,8 @@ def lambda_handler(event, context):
     os.makedirs(frame_dir, exist_ok=True)
 
     # Load model for predictions
-    model_type, model = load_model(1)
+    model_number = 1
+    model_type, model = load_model(model_number)
 
     # Toogle boolean for displaying bounding boxes
     display_bounding_box = True
@@ -258,7 +260,7 @@ def lambda_handler(event, context):
             raise RuntimeError('Failed to capture frame')
         if frame_count % frame_skip == 0:  # only analyze every n frames
 
-            annotate_info(frame, frame_skip, display_info, display_bounding_box)
+            annotate_info(frame, frame_skip, display_info, display_bounding_box, model_number)
 
             if display_bounding_box:
                 # Inference time
@@ -289,6 +291,15 @@ def lambda_handler(event, context):
             frame_skip += 5
         if k == ord('i'):
             display_info = not display_info
+        if k == ord('1'):
+            model_number = 1
+            model_type, model = load_model(model_number)
+            log.info(f"Loading model #{model_number}")
+        if k == ord('3'):
+            model_number = 3
+            model_type, model = load_model(model_number)
+            log.info(f"Loading model #{model_number}")
+
 
     # When everything done, release the capture
     cap.release()
