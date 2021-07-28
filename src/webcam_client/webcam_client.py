@@ -190,25 +190,13 @@ def detect_logo(frame):
         print(response_dict['errorMessage'])
 
 
-def convert_to_jpg(frame, resolution):
-    """ Converts the captured frame to the desired resolution
-    """
-    ret, jpeg = cv2.imencode('.jpg', cv2.resize(frame, resolution))
-    if not ret:
-        raise Exception('Failed to set frame data')
-    return jpeg
-
-
-def save_jpeg_to_temp(frame, jpeg_dir):
+def save_frame(frame, jpeg_dir, ext='jpg'):
     frame_time = datetime.now()
-    frame_name = f'{frame_time.strftime("frame-%y-%m-%d_%H-%M-%S%f.jpeg")}'
-    frame_path = Path(jpeg_dir / frame_name)
+    frame_name = f'{frame_time.strftime("frame-%y-%m-%d_%H-%M-%S%f.")}{ext}'
+    frame_path = str(Path(jpeg_dir / frame_name))
 
-    jpeg = convert_to_jpg(frame, RESOLUTION['training'])
-
+    cv2.imwrite(frame_path, frame)
     log.info(f"Saving picture to {frame_path}")
-    with open(frame_path, 'wb') as f:
-        f.write(jpeg)
 
 
 def scale_bbox_dims(img, bbox, size=384):
@@ -277,7 +265,7 @@ def lambda_handler(event, context):
             cv2.imshow(winname, frame)
 
             # Save images based on timestamp
-            # save_jpeg_to_temp(frame, frame_dir)
+            save_frame(frame, frame_dir, ext='jpg')
 
         frame_count += 1
 
@@ -315,3 +303,7 @@ def lambda_handler(event, context):
 
 if __name__ == '__main__':
     lambda_handler(None, None)
+
+# TODO: argparsing for:
+# where to save images ?
+# which model to load, and a second model to load if wanted
