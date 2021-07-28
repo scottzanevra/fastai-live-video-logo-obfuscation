@@ -4,6 +4,8 @@ import logging
 import os
 import socket
 import time
+import glob
+from PIL import Image
 
 import boto3
 import cv2
@@ -79,6 +81,7 @@ def annotate_info(frame, frame_skip, display_info, display_bounding_boxes, model
     """
 
     info_text = f"Clothing logo obfuscator. \n\n" \
+                f"press ESC or q to quit" \
                 f"press 'i' to toggle info \n" \
                 f"press 'b' to toggle bounding boxes \n" \
                 f"press 'a' to decrease frame skip \n" \
@@ -160,7 +163,7 @@ def annotate_bounding_boxes(frame, labels, scores, bboxes):
 
     return frame
 
-
+# TODO: remove this
 def detect_logo(frame):
     # This is this function will do the inference.
     # We require the annotations to be provided back in the response
@@ -197,6 +200,30 @@ def save_frame(frame, jpeg_dir, ext='jpg'):
 
     cv2.imwrite(frame_path, frame)
     log.info(f"Saving picture to {frame_path}")
+
+
+def generate_gif_from_frame_dir(
+        frame_dir,
+        save_path,
+        duration=20,
+        loop=0):
+    """
+    Creates a gif from an saved frames output during live detection
+    :param frame_dir:
+    :param save_path:
+    :param duration: duration of gif
+    :param loop:
+    :return:
+    """
+
+    frame_paths = sorted(glob.glob(f'{frame_dir}/*.png'))
+    frames = [Image.open(f) for f in frame_paths]
+
+    frames[0].save(
+        fp=f'{save_path}.gif', format='GIF', save_all=True,
+        append_images=frames[1:], duration=duration, loop=loop)
+
+    return save_path
 
 
 def scale_bbox_dims(img, bbox, size=384):
@@ -294,7 +321,6 @@ def lambda_handler(event, context):
             model_number = 3
             model_type, model = load_model(model_number)
             log.info(f"Loading model #{model_number}")
-
 
     # When everything done, release the capture
     cap.release()
