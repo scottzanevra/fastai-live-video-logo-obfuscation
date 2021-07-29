@@ -10,12 +10,7 @@ While it is certainly not illegal to use trademarked products in the visual medi
 
 ![Project workflow](docs/images/project_workflow.png)
 
-## AWS Serverless Application Model
-The AWS Serverless Application Model (SAM) is an open-source framework for building serverless applications. It provides shorthand syntax to express functions, APIs, databases, and event source mappings.
-https://aws.amazon.com/serverless/sam/
-
 ## Training the Model
-
 To train the models and test them notebooks train.ipynb and infer.ipynb (in “src/train/”) are used. The training method achieved COCO metric of 0.70 for model 3 (yolo5) and 0.42 for model 1 (retinanet).  
 The training process has 3 steps:
 -	Step 0: Training the head with weight decay of 0.2.
@@ -64,7 +59,7 @@ torch.save(model.state_dict(), PATH)
 In this step we remove the weight decay. It is again recommended that user set the learning rate manually to the largest possible value that does not deteriorate the validation loss of the previous step. Same Callbacks as step 1 are used to drop learning rate by factor of 6, after 15 steps without progress and stop after 25 steps without any progress.
 
 
-# Run your own Logo Obfuscator 
+## Run your own Logo Obfuscator 
 
 *Dataset*: To train and perform inference on our models we first need data for model training. 
 
@@ -72,32 +67,44 @@ In this step we remove the weight decay. It is again recommended that user set t
 We will use [conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/) 
 to create our environment. Create a python 3.8 environment first: 
 
-``` conda create -n py38 python=3.8 ```
+``` text
+conda create -n py38 python=3.8 
+```
 
 Activate the environment: 
 
-``` conda activate py38 ```
+```text
+conda activate py38
+```
 
 Then install dependencies: 
 
-``` pip3 install -r requirements.txt ```
+``` text
+pip3 install -r requirements.txt 
+```
 
 ## Training your own model 
 Run `train.py` (im guessing we'll have a training script?). This will generate a model saved to a specified directory. 
 
-``` python -m  src.train --data-dir {TRAINING_DATA_DIR} --model-save-dir {MODEL_SAVE_PATH} ```
+``` 
+python -m  src.train --data-dir {TRAINING_DATA_DIR} --model-save-dir {MODEL_SAVE_PATH} 
+```
 
 ## Inference
 We can run inference on our 
 [trained models](https://drive.google.com/drive/folders/1v0xAoCK1cuZmud-jKuSzE_CUC4ZIj8vX), 
 or provide a path to your own trained model: 
 
-```python -m src.inference --model-number {MODEL_NUMBER} --model-path {PATH_TO_MODEL}```
+```
+python -m src.inference --model-number {MODEL_NUMBER} --model-path {PATH_TO_MODEL}
+```
 
 ## Webcam client 
 To run obfuscation live on your webcam: 
 
-``` python -m  src.webcam_client.webcam_client --model-number {MODEL_NUMBER} --model-path {PATH_TO_MODEL}```
+``` 
+python -m  src.webcam_client.webcam_client --model-number {MODEL_NUMBER} --model-path {PATH_TO_MODEL}
+```
 
 Adjustments can be made to the running webcam client to toggle bounding boxes, switch out models and change the 
 frame rate of the stream: 
