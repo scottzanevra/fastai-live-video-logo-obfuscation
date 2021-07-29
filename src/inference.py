@@ -1,12 +1,14 @@
 from icevision.all import *
-import PIL
 from PIL import Image
 import time
-
-model_dir = Path("models/")
-
+import argparse
+import logging
 import ssl
 ssl._create_default_https_context = ssl._create_unverified_context
+
+logging.basicConfig()
+log = logging.getLogger()
+log.setLevel(os.environ.get('LOG_LEVEL', 'INFO'))
 
 IMAGE_SIZE = 384
 
@@ -73,7 +75,7 @@ def load_model(model_number, model_path):
 
 
 def convert_img_to_ds(img_pil):
-    infer_tfms = tfms.A.Adapter([*tfms.A.resize_and_pad(size=384), tfms.A.Normalize()])
+    infer_tfms = tfms.A.Adapter([*tfms.A.resize_and_pad(size=IMAGE_SIZE), tfms.A.Normalize()])
     return Dataset.from_images([img_pil], infer_tfms)
 
 
@@ -133,19 +135,37 @@ def predict_from_model(model_type, model, image_path=None, cv_img=None):
     return labels, scores, bboxes
 
 
-image_path = "data/test/image1.jpg"
-img = cv2.imread(image_path)
-
-model_number = 1
-
 if __name__ == "__main__":
-    model_type, model = load_model(1)
+    parser = argparse.ArgumentParser(description='perform inference on single images')
+    parser.add_argument('--model-number', type=int,
+                        dest='model_number',
+                        help='model number corresponding to model architecture')
+    parser.add_argument('--model-path', type=str,
+                        dest='model_path',
+                        help='path to load trained model from')
+    parser.add_argument('--image-path',
+                        dest='image_path',
+                        default='data/test/image1.jpg',
+                        help='path to image to perform inference on')
+
+    # Parse arguments
+    args = parser.parse_args()
+    model_number = args.model_number
+    model_path = args.model_path
+
+    # Load specified model
+    model_type, model = load_model(model_number, model_path)
+
+    # Load image
+    image_path = args.image_path
+    img = cv2.imread(image_path)
 
     start = time.time()
-    labels, scores, bboxes = predict_from_model(model_type, model, cv_img=img)
-    print(f'Took {time.time()-start:.2f} seconds to predict cv2 image')
 
-    start = time.time()
+    # Run inference
     labels, scores, bboxes = predict_from_model(model_type, model, cv_img=img)
-    print(f'Took {time.time()-start:.2f} seconds to predict and load image from path')
+    log.info(f'Took {time.time()-start:.2f} seconds for inference using model {model_number}')
+    log.info(f'\nLabels predicted:\n{labels}')
+    log.info(f'\nScores:\n{scores}')
+    log.info(f'\nBounding boxes:\n{bboxes}')
 
