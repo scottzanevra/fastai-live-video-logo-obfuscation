@@ -1,3 +1,14 @@
-icevision
-torch
-pillow
+boto3==1.18.4
+fastai==2.4.1
+icevision==0.8.1
+IProgress==0.4
+ipykernel==6.0.3
+ipywidgets
+jupyterlab==3.0.16
+matplotlib==3.4.2
+numpy==1.21.1
+opencv-python==4.1.2.30
+pandas==1.3.0
+Pillow==8.3.1
+pycocotools==2.0.2
+yolov5==5.0.7
