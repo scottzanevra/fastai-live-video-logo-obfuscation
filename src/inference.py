@@ -8,12 +8,25 @@ model_dir = Path("models/")
 import ssl
 ssl._create_default_https_context = ssl._create_unverified_context
 
+IMAGE_SIZE = 384
+
 
 def model_selection(model_number):
-    image_size = 384
+    """
+    Select model framework and architecture to load corresponding to model number s
+    0: mmdet.retinanet
+    1: torchvision.retinanet
+    2: ross.efficientnet
+    3: yolov5
+
+    :param model_number:
+    :return: model type, and architecture
+    """
+
     model_type = None
     backbone = None
     extra_args = {}
+
     if model_number == 0:
         model_type = models.mmdet.retinanet
         backbone = model_type.backbones.resnet50_fpn_1x
@@ -27,37 +40,34 @@ def model_selection(model_number):
         model_type = models.ross.efficientdet
         backbone = model_type.backbones.tf_lite0
         # The efficientdet model requires an img_size parameter
-        extra_args['img_size'] = image_size
+        extra_args['img_size'] = IMAGE_SIZE
 
     elif model_number == 3:
         model_type = models.ultralytics.yolov5
         backbone = model_type.backbones.small
         # The yolov5 model requires an img_size parameter
-        extra_args['img_size'] = image_size
-        # TODO: as per below, this is hacky, should be one return
-        return model_type, model_type.model(backbone=backbone(pretrained=True), num_classes=3, **extra_args)
+        extra_args['img_size'] = IMAGE_SIZE
 
     # Instantiate the model
-    # !TODO need to figure out how to get the len of the classmap from the data dict
     return model_type, model_type.model(backbone=backbone(pretrained=True), num_classes=4, **extra_args)
 
-#
-# def load_model(model_number):
-#     model_type, model = model_selection(model_number)
-#     model_name = f"nikemodel_model_{model_number}_new_100.mm"
-#     model.load_state_dict(torch.load(model_dir/f"{model_name}", map_location=torch.device('cpu')))
-#     return model_type, model
 
-def load_model(model_number):
-    # TOOD: hack
-    if model_number == 1:
-        model_name = f"nikemodel_model_{model_number}_new_100.mm"
-        model_type, model = model_selection(model_number)
-        model.load_state_dict(torch.load(model_dir/f"{model_name}", map_location=torch.device('cpu')))
-    else:
-        model_name = f"model_3_unfreeze_20.mm" #  "model_3_unfreeze_20.mm" #"model_3_unfreeze_20.mm"
-        model_type, model = model_selection(model_number)
-        model.load_state_dict(torch.load(f"infer/{model_name}", map_location=torch.device('cpu')))
+def load_model(model_number, model_path):
+    """
+    Load model from provided directory into selected model architecture.
+
+    :param model_number:
+        Model numbers correspond to the following architectures:
+        0: mmdet.retinanet
+        1: torchvision.retinanet
+        2: ross.efficientnet
+        3: yolov5
+    :param model_path: directory of saved model weights
+    :return:
+    """
+
+    model_type, model = model_selection(model_number)
+    model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
 
     return model_type, model
 
@@ -67,8 +77,8 @@ def convert_img_to_ds(img_pil):
     return Dataset.from_images([img_pil], infer_tfms)
 
 
-def predict(model_number, image_path=None, cv_img=None):
-    model_type, model = load_model(model_number)
+def predict(model_number, model_path, image_path=None, cv_img=None):
+    model_type, model = load_model(model_number, model_path)
 
     img_pil=None
 

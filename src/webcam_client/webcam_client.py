@@ -34,6 +34,13 @@ COLOR_MAP = {
 # Overlap percentage threshold for logo boxes
 LOGO_OVERLAP_THRESHOLD = 80
 
+MODEL_ARCHS = {
+    0: "mmdet.retinanet",
+    1: "torchvision.retinanet",
+    2: "ross.efficientnet",
+    3: "yolov5"
+}
+
 
 def overlap_area(bbox1, bbox2):
     """
@@ -79,7 +86,7 @@ def annotate_info(frame, frame_skip, display_info, display_bounding_boxes, model
                 f"press 's' to increase frame skip \n\n\n" \
                 f"display bounding boxes: {display_bounding_boxes}\n" \
                 f"frames skipped: {frame_skip}\n" \
-                f"model number: {model_number}"
+                f"model number: {MODEL_ARCHS[model_number]}"
 
     if not display_info:
         return
@@ -228,7 +235,7 @@ def scale_bbox_dims(img, bbox, size=384):
     return bbox_min, bbox_max
 
 
-def run_webcam():
+def run_webcam(model1_path=None, model3_path=None, save_frames=False):
     """
     Perform human and logo object detection on live cv2 VideoCapture
     """
@@ -243,13 +250,14 @@ def run_webcam():
     cv2.moveWindow(winname, 50, 50)
 
     # Create tmp dir for this round of webcam frames
-    dir_time = datetime.now()
-    frame_dir = Path(f'tmp/{dir_time.strftime("camera-frames-%y-%m-%d_%H-%M-%S")}')
-    os.makedirs(frame_dir, exist_ok=True)
+    if save_frames:
+        dir_time = datetime.now()
+        frame_dir = Path(f'tmp/{dir_time.strftime("camera-frames-%y-%m-%d_%H-%M-%S")}')
+        os.makedirs(frame_dir, exist_ok=True)
 
     # Load model for predictions
     model_number = 1
-    model_type, model = load_model(model_number)
+    model_type, model = load_model(model_number, model1_path)
 
     # Toogle boolean for displaying bounding boxes
     display_bounding_box = True
@@ -272,7 +280,9 @@ def run_webcam():
             cv2.imshow(winname, frame)
 
             # Save images based on timestamp
-            save_frame(frame, frame_dir, ext='jpg')
+            if save_frames:
+                log.info(f"Saving frame to {frame_dir}")
+                save_frame(frame, frame_dir, ext='jpg')
 
         frame_count += 1
 
@@ -295,11 +305,11 @@ def run_webcam():
             display_info = not display_info
         if k == ord('1'):
             model_number = 1
-            model_type, model = load_model(model_number)
+            model_type, model = load_model(model_number, model1_path)
             log.info(f"Loading model #{model_number}")
         if k == ord('3'):
             model_number = 3
-            model_type, model = load_model(model_number)
+            model_type, model = load_model(model_number, model3_path)
             log.info(f"Loading model #{model_number}")
 
     # When everything done, release the capture
@@ -308,4 +318,7 @@ def run_webcam():
 
 
 if __name__ == '__main__':
-    run_webcam()
+    run_webcam(
+        model1_path="models/model_1_step2_final.m",
+        model3_path="models/model_3_step2_final.m"
+    )
