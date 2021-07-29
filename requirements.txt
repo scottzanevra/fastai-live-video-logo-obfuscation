@@ -1,6 +1,3 @@
-fastai
-pycocotools
-numpy 
-matplotlib
-scikit-image
-jupyterlab
+icevision
+torch
+pillow

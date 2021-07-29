@@ -1,13 +1,8 @@
-import base64
-import json
 import logging
 import os
-import socket
 import time
 import glob
 from PIL import Image
-
-import boto3
 import cv2
 import numpy as np
 
@@ -18,10 +13,6 @@ from src.inference import predict_from_model, load_model
 logging.basicConfig()
 log = logging.getLogger()
 log.setLevel(os.environ.get('LOG_LEVEL', 'INFO'))
-
-REGION = os.environ.get('REGION', 'ap-southeast-2')
-LAMBDA = boto3.client('lambda', region_name=REGION)
-CAMERA_ID = socket.gethostname()
 
 # List of valid resolutions
 RESOLUTION = {'1080p': (1920, 1080), '720p': (1280, 720), '480p': (858, 480), 'training': (300, 300)}
@@ -163,40 +154,27 @@ def annotate_bounding_boxes(frame, labels, scores, bboxes):
 
     return frame
 
-# TODO: remove this
-def detect_logo(frame):
-    # This is this function will do the inference.
-    # We require the annotations to be provided back in the response
 
-    # Resize frame to 1/2 for faster processing
-    small = cv2.resize(frame, (0, 0), fx=0.5, fy=0.5)
-
-    # Encode to JPG and send to lambda
-    ret, encoded = cv2.imencode('.jpg', small)
-    if not ret:
-        raise RuntimeError('Failed to encode frame')
-
-    # !TODO Replace this with a POST to API Gateway
-    response = LAMBDA.invoke(
-        FunctionName=f"fast-ai-object-detection-lambda",
-        InvocationType='RequestResponse',
-        Payload=json.dumps({
-            'camera_ID': CAMERA_ID,
-            'img': base64.b64encode(encoded).decode('utf-8')
-        }))
-
-    # Annotate bounding boxes to frame
-    response_dict = json.loads(response['Payload'].read())
-    if 'FunctionError' not in response:
-        annotate_bounding_boxes(frame, response_dict)
-    else:
-        print(response_dict['errorMessage'])
-
-
-def save_frame(frame, jpeg_dir, ext='jpg'):
+def save_frame(frame, save_dir, ext='jpg'):
+    """
+    Saves annotated cv2 frame from webclient to a specified local directory.
+    :param frame: annotated cv2 frame to same
+    :param save_dir: directory to save frame to
+    :param ext: file type, e.g. 'jpg' or 'png'
+    :return:
+    """
     frame_time = datetime.now()
     frame_name = f'{frame_time.strftime("frame-%y-%m-%d_%H-%M-%S%f.")}{ext}'
-    frame_path = str(Path(jpeg_dir / frame_name))
+    frame_path = str(Path(save_dir / frame_name))
+
+
+def convert_to_jpg(frame, resolution):
+    """ Converts the captured frame to the desired resolution
+    """
+    ret, jpeg = cv2.imencode('.jpg', cv2.resize(frame, resolution))
+    if not ret:
+        raise Exception('Failed to set frame data')
+    return jpeg
 
     cv2.imwrite(frame_path, frame)
     log.info(f"Saving picture to {frame_path}")
@@ -250,8 +228,10 @@ def scale_bbox_dims(img, bbox, size=384):
     return bbox_min, bbox_max
 
 
-def lambda_handler(event, context):
-
+def run_webcam():
+    """
+    Perform human and logo object detection on live cv2 VideoCapture
+    """
     cap = cv2.VideoCapture(0)
     time.sleep(1)  # just to avoid that initial black frame
 
@@ -328,8 +308,4 @@ def lambda_handler(event, context):
 
 
 if __name__ == '__main__':
-    lambda_handler(None, None)
-
-# TODO: argparsing for:
-# where to save images ?
-# which model to load, and a second model to load if wanted
+    run_webcam()
