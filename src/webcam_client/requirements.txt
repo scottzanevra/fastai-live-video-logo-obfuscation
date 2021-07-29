@@ -1,2 +1,3 @@
 opencv_python==4.0.0.21
 boto3==1.9.99
+icevision

@@ -1,11 +1,6 @@
-import base64
-import json
 import logging
 import os
-import socket
 import time
-
-import boto3
 import cv2
 import numpy as np
 
@@ -17,9 +12,6 @@ logging.basicConfig()
 log = logging.getLogger()
 log.setLevel(os.environ.get('LOG_LEVEL', 'INFO'))
 
-REGION = os.environ.get('REGION', 'ap-southeast-2')
-LAMBDA = boto3.client('lambda', region_name=REGION)
-CAMERA_ID = socket.gethostname()
 
 # List of valid resolutions
 RESOLUTION = {'1080p': (1920, 1080), '720p': (1280, 720), '480p': (858, 480), 'training': (300, 300)}
@@ -161,35 +153,6 @@ def annotate_bounding_boxes(frame, labels, scores, bboxes):
     return frame
 
 
-def detect_logo(frame):
-    # This is this function will do the inference.
-    # We require the annotations to be provided back in the response
-
-    # Resize frame to 1/2 for faster processing
-    small = cv2.resize(frame, (0, 0), fx=0.5, fy=0.5)
-
-    # Encode to JPG and send to lambda
-    ret, encoded = cv2.imencode('.jpg', small)
-    if not ret:
-        raise RuntimeError('Failed to encode frame')
-
-    # !TODO Replace this with a POST to API Gateway
-    response = LAMBDA.invoke(
-        FunctionName=f"fast-ai-object-detection-lambda",
-        InvocationType='RequestResponse',
-        Payload=json.dumps({
-            'camera_ID': CAMERA_ID,
-            'img': base64.b64encode(encoded).decode('utf-8')
-        }))
-
-    # Annotate bounding boxes to frame
-    response_dict = json.loads(response['Payload'].read())
-    if 'FunctionError' not in response:
-        annotate_bounding_boxes(frame, response_dict)
-    else:
-        print(response_dict['errorMessage'])
-
-
 def convert_to_jpg(frame, resolution):
     """ Converts the captured frame to the desired resolution
     """
@@ -235,7 +198,7 @@ def scale_bbox_dims(img, bbox, size=384):
     return bbox_min, bbox_max
 
 
-def lambda_handler(event, context):
+def run_webcam():
 
     cap = cv2.VideoCapture(0)
     time.sleep(1)  # just to avoid that initial black frame
@@ -314,4 +277,4 @@ def lambda_handler(event, context):
 
 
 if __name__ == '__main__':
-    lambda_handler(None, None)
+    run_webcam()
