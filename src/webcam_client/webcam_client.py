@@ -5,6 +5,7 @@ import glob
 from PIL import Image
 import cv2
 import numpy as np
+import argparse
 
 from datetime import datetime
 from pathlib import Path
@@ -70,7 +71,6 @@ def overlap_percent(bbox1, bbox2):
 def annotate_info(frame, frame_skip, display_info, display_bounding_boxes, model_number):
     """
     Displays webcam info + toggle features available
-
     :param frame: frame to annotate
     :param frame_skip: number of frames currently being skipped
     :param: display_info: whether to display info text at all
@@ -173,18 +173,18 @@ def save_frame(frame, save_dir, ext='jpg'):
     frame_time = datetime.now()
     frame_name = f'{frame_time.strftime("frame-%y-%m-%d_%H-%M-%S%f.")}{ext}'
     frame_path = str(Path(save_dir / frame_name))
+    cv2.imwrite(frame_path, frame)
+    log.info(f"Saving picture to {frame_path}")
 
 
 def convert_to_jpg(frame, resolution):
-    """ Converts the captured frame to the desired resolution
+    """
+    Converts the captured frame to the desired resolution
     """
     ret, jpeg = cv2.imencode('.jpg', cv2.resize(frame, resolution))
     if not ret:
         raise Exception('Failed to set frame data')
     return jpeg
-
-    cv2.imwrite(frame_path, frame)
-    log.info(f"Saving picture to {frame_path}")
 
 
 def generate_gif_from_frame_dir(
@@ -235,17 +235,29 @@ def scale_bbox_dims(img, bbox, size=384):
     return bbox_min, bbox_max
 
 
-def run_webcam(model1_path=None, model3_path=None, save_frames=False):
+def run_webcam(model_number=None, model_path=None, model2_number=None, model2_path=None, save_frames=False):
     """
-    Perform human and logo object detection on live cv2 VideoCapture
+        Perform human and logo object detection on live cv2 VideoCapture
+    :param model_number: type of model to load.
+        Model numbers correspond to the following architectures:
+        0: mmdet.retinanet
+        1: torchvision.retinanet
+        2: ross.efficientnet
+        3: yolov5
+    :param model_path: path to model
+    :param model2_number: secondary model type to load (optional, use for comparing models)
+    :param model2_path: secondary model to load (optional)
+    :param save_frames: if True, save to tmp directory
+    :return:
     """
+
     cap = cv2.VideoCapture(0)
     time.sleep(1)  # just to avoid that initial black frame
 
     frame_skip = 10
     frame_count = 0
 
-    winname = 'Press ESC or Q to quit'
+    winname = 'Clothing logo obfuscator- press ESC or Q to exit'
     cv2.namedWindow(winname)
     cv2.moveWindow(winname, 50, 50)
 
@@ -256,8 +268,7 @@ def run_webcam(model1_path=None, model3_path=None, save_frames=False):
         os.makedirs(frame_dir, exist_ok=True)
 
     # Load model for predictions
-    model_number = 1
-    model_type, model = load_model(model_number, model1_path)
+    model_type, model = load_model(model_number, model_path)
 
     # Toogle boolean for displaying bounding boxes
     display_bounding_box = True
@@ -304,13 +315,12 @@ def run_webcam(model1_path=None, model3_path=None, save_frames=False):
         if k == ord('i'):
             display_info = not display_info
         if k == ord('1'):
-            model_number = 1
-            model_type, model = load_model(model_number, model1_path)
+            model_type, model = load_model(model_number, model_path)
             log.info(f"Loading model #{model_number}")
-        if k == ord('3'):
-            model_number = 3
-            model_type, model = load_model(model_number, model3_path)
-            log.info(f"Loading model #{model_number}")
+        if k == ord('2'):
+            if model2_path:
+                model_type, model = load_model(model2_number, model2_path)
+                log.info(f"Loading model #{model_number}")
 
     # When everything done, release the capture
     cap.release()
@@ -318,7 +328,34 @@ def run_webcam(model1_path=None, model3_path=None, save_frames=False):
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='perform live inference on webcam video stream')
+    parser.add_argument('--model-number', type=int,
+                        dest='model_number',
+                        help='model number corresponding to model architecture')
+    parser.add_argument('--model-path', type=str,
+                        dest='model_path',
+                        help='path to load trained model from')
+    parser.add_argument('--model2-number', type=int,
+                        dest='model2_number', default=None,
+                        help='second model number corresponding to model architecture (optional)')
+    parser.add_argument('--model2-path', type=str,
+                        dest='model2_path', default=None,
+                        help='path to load trained second model from (optional)')
+    parser.add_argument('--save-frames', dest='save_frames', action='store_true',
+                        help='save frames to tmp directory')
+    # Parse arguments
+    args = parser.parse_args()
+    model_number = args.model_number
+    model_path = args.model_path
+
+    model2_number = args.model2_number
+    model2_path = args.model2_path
+    save_frames = args.save_frames
+
     run_webcam(
-        model1_path="models/model_1_step2_final.m",
-        model3_path="models/model_3_step2_final.m"
+        model_number=model_number,
+        model_path=model_path,
+        model2_number=model2_number,
+        model2_path="models/model_3_step2_final.m",
+        save_frames=save_frames
     )
