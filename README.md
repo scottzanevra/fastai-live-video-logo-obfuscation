@@ -66,10 +66,7 @@ Model 3:
 ![yolov5-mannequin-swoosh](docs/images/yolov5-mannequin-swoosh.gif)
 
 
-## Run your own Logo Obfuscator 
-
-*Dataset*: To train and perform inference on our models we first need data for model training. 
-
+## Run your own Logo Obfuscator
 ### Environment setup
 We will use [conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/) 
 to create our environment. Create a python 3.8 environment first: 
@@ -90,15 +87,11 @@ Then install dependencies:
 pip3 install -r requirements.txt 
 ```
 
-## Training your own model 
-Run `train.py` (im guessing we'll have a training script?). This will generate a model saved to a specified directory. 
-
-``` 
-python -m  src.train --data-dir {TRAINING_DATA_DIR} --model-save-dir {MODEL_SAVE_PATH} 
-```
+## Training 
+Models were trained and saved to disk using `src/train/train.ipynb`
 
 ## Inference
-We can run inference on our 
+Run inference on our 
 [trained models](https://drive.google.com/drive/folders/1v0xAoCK1cuZmud-jKuSzE_CUC4ZIj8vX), 
 or provide a path to your own trained model: 
 
@@ -114,13 +107,7 @@ python -m  src.webcam_client.webcam_client --model-number {MODEL_NUMBER} --model
 ```
 
 Adjustments can be made to the running webcam client to toggle bounding boxes, switch out models and change the 
-frame rate of the stream: 
-
-_insert a screenshot here !_
+frame rate of the stream. 
 
 We have only trained our provided models with Nike logos for the time being. 
 So make sure you have a Nike logo ready!
-
-## End-to-end notebook
-If you're a more interactive person, or you like experimenting, see __ in notebooks 
-to view the training and inference code end-to-end.
