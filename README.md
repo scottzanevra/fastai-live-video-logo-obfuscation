@@ -65,8 +65,6 @@ Model 3:
 Model 3:
 ![yolov5-mannequin-swoosh](docs/images/yolov5-mannequin-swoosh.gif)
 
-Model 1:
-![swoosh](docs/iamges/swoosh.gif)
 
 ## Run your own Logo Obfuscator 
 
