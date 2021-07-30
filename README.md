@@ -58,6 +58,13 @@ torch.save(model.state_dict(), PATH)
 ### Step 2
 In this step we remove the weight decay. It is again recommended that user set the learning rate manually to the largest possible value that does not deteriorate the validation loss of the previous step. Same Callbacks as step 1 are used to drop learning rate by factor of 6, after 15 steps without progress and stop after 25 steps without any progress.
 
+## Examples:
+Model 3:
+![yolov5-nike-swoosh-box](docs/images/yolov5-nike-swoosh-box.gif)
+
+Model 3:
+![yolov5-mannequin-swoosh](docs/images/yolov5-mannequin-swoosh.gif)
+
 
 ## Run your own Logo Obfuscator 
 
