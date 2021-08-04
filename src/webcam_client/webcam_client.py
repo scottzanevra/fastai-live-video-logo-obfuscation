@@ -86,7 +86,7 @@ def annotate_info(frame, frame_skip, display_info, display_bounding_boxes, model
                 f"press 's' to increase frame skip \n\n\n" \
                 f"display bounding boxes: {display_bounding_boxes}\n" \
                 f"frames skipped: {frame_skip}\n" \
-                f"model number: {MODEL_ARCHS[model_number]}"
+                f"model architecture: {MODEL_ARCHS[model_number]}"
 
     if not display_info:
         return
@@ -235,16 +235,16 @@ def scale_bbox_dims(img, bbox, size=384):
     return bbox_min, bbox_max
 
 
-def run_webcam(model_number=None, model_path=None, model2_number=None, model2_path=None, save_frames=False):
+def run_webcam(model1_number=None, model1_path=None, model2_number=None, model2_path=None, save_frames=False):
     """
         Perform human and logo object detection on live cv2 VideoCapture
-    :param model_number: type of model to load.
+    :param model1_number: type of model to load.
         Model numbers correspond to the following architectures:
         0: mmdet.retinanet
         1: torchvision.retinanet
         2: ross.efficientnet
         3: yolov5
-    :param model_path: path to model
+    :param model1_path: path to model
     :param model2_number: secondary model type to load (optional, use for comparing models)
     :param model2_path: secondary model to load (optional)
     :param save_frames: if True, save to tmp directory
@@ -268,7 +268,8 @@ def run_webcam(model_number=None, model_path=None, model2_number=None, model2_pa
         os.makedirs(frame_dir, exist_ok=True)
 
     # Load model for predictions
-    model_type, model = load_model(model_number, model_path)
+    model_type, model = load_model(model1_number, model1_path)
+    model_number = model1_number
 
     # Toogle boolean for displaying bounding boxes
     display_bounding_box = True
@@ -315,12 +316,14 @@ def run_webcam(model_number=None, model_path=None, model2_number=None, model2_pa
         if k == ord('i'):
             display_info = not display_info
         if k == ord('1'):
-            model_type, model = load_model(model_number, model_path)
-            log.info(f"Loading model #{model_number}")
+            model_type, model = load_model(model1_number, model1_path)
+            model_number = model1_number
+            log.info(f"Loading model #{model1_number}")
         if k == ord('2'):
             if model2_path:
                 model_type, model = load_model(model2_number, model2_path)
-                log.info(f"Loading model #{model_number}")
+                model_number = model2_number
+                log.info(f"Loading model #{model2_number}")
 
     # When everything done, release the capture
     cap.release()
@@ -353,8 +356,8 @@ if __name__ == '__main__':
     save_frames = args.save_frames
 
     run_webcam(
-        model_number=model_number,
-        model_path=model_path,
+        model1_number=model_number,
+        model1_path=model_path,
         model2_number=model2_number,
         model2_path="models/model_3_step2_final.m",
         save_frames=save_frames
